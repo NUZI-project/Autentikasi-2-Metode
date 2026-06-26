@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Monitoring Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="logo">  DASHBOARD</div>
+        <button class="btn-wallet" style="background: #000000; color: #ffffff;" onclick="window.location.href='index.html'">Disconnect</button>
+    </header>
+
+    <!-- CONTAINER UTAMA BERGAYA VERTIKAL -->
+    <div class="dashboard-v-container">
+        <div style="text-align: left; margin-bottom: -8px;">
+            <button class="back-text-link" onclick="window.location.href='index.html'" style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">
+                ← Kembali ke Beranda Utama
+            </button>
+        </div>
+        
+        <!-- 1. KOTAK ATAS: SELAMAT DATANG (Mengikuti Konsep image_ad2a7f.png) -->
+        <div class="welcome-stroke-card">
+            <div class="welcome-icon-box">👤</div>
+            <div>
+                <h1 class="form-title" style="font-size: 22px; margin-bottom: 4px;">Selamat Datang, <span id="welcomeName">User</span>!</h1>
+                <p class="form-subtitle" style="margin-bottom: 0;" id="welcomeDesc">Anda berhasil masuk ke dashboard menggunakan otentikasi sistem.</p>
+            </div>
+        </div>
+
+        <!-- 2. GRID BAWAH: 2 KOTAK BERBEDA (DETAIL & PENJELASAN) -->
+        <div class="dashboard-grid-bottom">
+            
+            <!-- KOTAK KIRI: DETAIL AKUN ANDA -->
+            <div class="proto-stroke-card" style="cursor: default; padding: 28px;">
+                <div class="proto-card-title" style="font-size: 16px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                    📋 Detail Akun Anda
+                </div>
+                
+                <div class="info-row-item">
+                    <span class="info-label">Nama Lengkap</span>
+                    <span class="info-value" id="detailFullName">-</span>
+                </div>
+                <div class="info-row-item">
+                    <span class="info-label">Username</span>
+                    <span class="info-value" id="detailUsername">-</span>
+                </div>
+                <div class="info-row-item">
+                    <span class="info-label">Alamat Wallet</span>
+                    <span class="info-value" id="detailWallet" style="font-family: monospace; font-size: 12.5px;">0x00...000</span>
+                </div>
+                <div class="info-row-item">
+                    <span class="info-label">Metode Registrasi</span>
+                    <span class="badge-proto" id="detailMethod">-</span>
+                </div>
+                <div class="info-row-item">
+                    <span class="info-label">Status Akses</span>
+                    <span class="info-value" style="color: #22c55e;" id="detailStatus">● ACTIVE</span>
+                </div>
+            </div>
+
+            <!-- KOTAK KANAN: PENJELASAN PERBEDAAN PROTOKOL -->
+            <div class="proto-stroke-card" style="cursor: default; padding: 28px; background: #fafafa;">
+                <div class="proto-card-title" style="font-size: 16px; margin-bottom: 16px;">
+                    🛡️ Penjelasan Arsitektur Keamanan
+                </div>
+                
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+                    <div style="padding-bottom: 12px; border-bottom: 1px solid #e0e0e0;">
+                        <span style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">[01] PROTOKOL KONVENSIONAL</span>
+                        <p style="font-size: 12px; color: #555555; line-height: 1.5;">
+                            Memetakan data rahasia langsung melintasi public state blockchain. Node verifikator mencocokkan string input dengan data histori pemetaan pendaftaran. Memiliki tingkat risiko kebocoran privasi tinggi pada public state ledger.
+                        </p>
+                    </div>
+
+                    <div>
+                        <span style="font-size: 12px; font-weight: 700; display: block; margin-bottom: 4px;">[02] ZERO-KNOWLEDGE PROOF (zk-SNARKs)</span>
+                        <p style="font-size: 12px; color: #555555; line-height: 1.5;">
+                            User menjalankan kalkulasi matematis komitmen di lokal browser untuk menghasilkan objek pembuktian tanpa kebocoran data rahasia. Smart contract memvalidasi kebenaran matematika tersebut tanpa mengetahui isi password asli user. Menjaga privasi penuh data kredensial.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- TRANSACTION LOG ATAS PERINTAH BACKEND (OPSIONAL DI BAGIAN BAWAH) -->
+        <div style="margin-top: 8px;">
+            <div class="logo" style="margin-bottom: 12px; color: #555555; font-size: 11px;">LIVE BLOCKCHAIN TRANSACTION LEDGER</div>
+            <div style="border: 2px solid #000000; border-radius: 12px; overflow: hidden; background: #ffffff;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px; font-family: monospace;">
+                    <thead>
+                        <tr style="background: #000000; color: #ffffff;">
+                            <th style="padding: 12px; text-align: left;">User</th>
+                            <th style="padding: 12px; text-align: left;">Metode</th>
+                            <th style="padding: 12px; text-align: left;">Aksi</th>
+                            <th style="padding: 12px; text-align: left;">Tx Hash</th>
+                            <th style="padding: 12px; text-align: left;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyRows"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <footer>
+        <div>Halaman Dashboard</div>
+        <div>Tugas 9 ( Mochamad Nurziad_105240022 )</div>
+    </footer>
+
+    <script>
+        // Mengambil data sesi dari LocalStorage hasil form login/register sebelumnya
+        const addr = localStorage.getItem('userAddr') || '0x0000000000000000000000000000000000000000';
+        const proto = localStorage.getItem('usedProto') || 'N/A';
+        const action = localStorage.getItem('usedAction') || 'N/A';
+        const hash = localStorage.getItem('txHash') || 'READ_ONLY_VIEW';
+        const username = localStorage.getItem('savedUsername') || 'USER_BLOCKCHAIN';
+        
+        // Mengisi komponen dinamis
+        document.getElementById('welcomeName').innerText = username;
+        document.getElementById('welcomeDesc').innerText = `Anda berhasil masuk ke dashboard dengan menggunakan modul ${proto} secara aman.`;
+        
+        document.getElementById('detailFullName').innerText = username; 
+        document.getElementById('detailUsername').innerText = `@${username.toLowerCase().replace(/\s+/g, '_')}`;
+        document.getElementById('detailWallet').innerText = `${addr.substring(0,8)}...${addr.substring(addr.length-6)}`;
+        document.getElementById('detailMethod').innerText = proto;
+        document.getElementById('detailStatus').innerText = `● ${action} APPROVED`;
+
+        // Mengisi baris tabel ledger di bawah
+        const table = document.getElementById('historyRows');
+        const shortHash = hash !== 'READ_ONLY_VIEW' ? `${hash.substring(0,12)}...` : hash;
+
+        table.innerHTML = `
+            <tr style="background:#ffffff;">
+                <td style="padding: 12px; font-weight:bold;">${username}</td>
+                <td style="padding: 12px;">${proto}</td>
+                <td style="padding: 12px;"><span style="background:#000; color:#fff; padding:2px 6px; border-radius:4px; font-size:10px;">${action}</span></td>
+                <td style="padding: 12px; color:#555;">${shortHash}</td>
+                <td style="padding: 12px; color:#22c55e; font-weight:700;">● SUCCESS</td>
+            </tr>
+        `;
+    </script>
+</body>
+</html>

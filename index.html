@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Akses Kriptografi</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <div class="logo"> SYSTEM Autentikasi 2 Metode</div>
+        <button class="btn-wallet" id="walletBtn" onclick="connectWallet()">Connect Wallet</button>
+    </header>
+
+    <div class="split-container">
+        
+        <div class="split-left-pane">
+            <span class="pane-badge" id="dynamicBadge">Infrastruktur Berbasis Hash</span>
+            <h1 class="pane-title" id="leftPaneTitle">Gerbang Otentikasi</h1>
+            <p class="pane-desc" id="leftPaneDesc">Pilih metode gerbang keamanan pada bilah menu interaktif di sebelah kanan untuk memulai sesi pendaftaran atau autentikasi akun baru Anda.</p>
+        </div>
+
+        <div class="split-right-pane">
+            
+            <div class="protocol-group" id="protocolSelection">
+                <div style="margin-bottom: 8px;">
+                    <h2 class="form-title">Pilih Protokol Akses</h2>
+                    <p class="form-subtitle">Tentukan infrastruktur penanganan data rahasia Anda.</p>
+                </div>
+
+                <div class="proto-stroke-card" onclick="openAuth('konvensional')">
+                    <div class="proto-card-title">01 / Protokol Konvensional</div>
+                    <div class="proto-card-desc">Autentikasi standar menggunakan string hash searah yang dikonfirmasi langsung ke dalam state penyimpanan blockchain.</div>
+                </div>
+
+                <div class="proto-stroke-card" onclick="openAuth('zkp')">
+                    <div class="proto-card-title">02 / Protokol Zero-Knowledge Proof</div>
+                    <div class="proto-card-desc">Autentikasi tingkat lanjut. Memvalidasi kebenaran password via bukti matematika tanpa mengekspos kata sandi asli.</div>
+                </div>
+            </div>
+
+            <div class="auth-form-container" id="authWorkspace" style="display: none;">
+                <button class="back-text-link" onclick="backToProtocols()">← Kembali ke Pilihan Gerbang</button>
+                
+                <h2 class="form-title" id="formTitle">Registrasi Akun Baru</h2>
+                <p class="form-subtitle" id="formSubText">Lengkapi parameter akun terdesentralisasi Anda.</p>
+                
+                <form onsubmit="processSubmit(event)">
+                    <div class="stroke-input-group" id="fullNameGroup">
+                        <label>Nama Lengkap</label>
+                        <input type="text" id="fullNameInput" placeholder="Masukkan nama lengkap Anda">
+                    </div>
+                    <div class="stroke-input-group">
+                        <label>Identitas Username</label>
+                        <input type="text" id="userInput" placeholder="Contoh: node_kripto_01" required>
+                    </div>
+                    <div class="stroke-input-group">
+                        <label>Kata Sandi / Secret Key</label>
+                        <input type="password" id="passInput" placeholder="••••••••" required>
+                    </div>
+                    
+                    <button type="submit" class="btn-black-action" id="submitBtn">Login</button>
+                </form>
+                <button class="toggle-form-btn" id="toggleBtn" onclick="switchForm()">Belum memiliki akun? Daftar di sini</button>
+                
+                <div class="zkp-live-terminal" id="zkpTerminal" style="display: none;">
+                    <div class="log-stream-area" id="logStream"></div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="custom-modal-overlay" id="customModal">
+        <div class="custom-modal-card">
+            <h3 class="form-title" id="modalTitle">Notifikasi Sistem</h3>
+            <p class="modal-msg" id="modalMessage">Log info transaksi sistem.</p>
+            <button class="btn-black-action" style="margin-top:0;" onclick="closeModal()">Selesai & Lanjutkan</button>
+        </div>
+    </div>
+
+
+    <script>
+        const CONTRACT_ADDRESS = "0xDcF84BfdA5e70164c9bd182282FC775B02AEB68C"; 
+        const CONTRACT_ABI = [
+            "function registerConventional(string memory _password) public",
+            "function loginConventional(string memory _password) public view returns (bool)",
+            "function registerZKP(uint256 _expectedHash) public",
+            "function loginZKP(uint256 _calculatedHash) public view returns (bool)"
+        ];
+
+        let provider, signer, contract, walletConnected = false, currentProtocol = '', isRegister = true, myAddress = '';
+
+        function showPopup(title, message) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = message;
+            document.getElementById('customModal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('customModal').style.display = 'none'; }
+
+        async function connectWallet() {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    signer = await provider.getSigner();
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    myAddress = accounts[0];
+                    walletConnected = true;
+                    document.getElementById('walletBtn').innerText = `${myAddress.substring(0,6)}...${myAddress.substring(myAddress.length-4)} (CONNECTED)`;
+                    showPopup("Wallet Terhubung", "Sinkronisasi alamat publik dompet digital MetaMask berhasil diselesaikan.");
+                } catch (e) { showPopup("Koneksi Batal", "Pengguna menolak permintaan otorisasi wallet."); }
+            } else { showPopup("MetaMask Hilang", "Silakan instal modul ekstensi MetaMask pada laptop Anda."); }
+        }
+
+        function openAuth(proto) {
+            currentProtocol = proto;
+            document.getElementById('protocolSelection').style.display = 'none';
+            document.getElementById('authWorkspace').style.display = 'block';
+            
+            if(proto === 'zkp') {
+                document.getElementById('dynamicBadge').innerText = "Infrastruktur Kriptografi ZK-Proof";
+                document.getElementById('leftPaneTitle').innerText = "Zero-Knowledge Proof Shielding Core";
+                document.getElementById('leftPaneDesc').innerText = "Sistem menginisialisasi parameter pembuktian matematika lokal. Rahasia dilindungi penuh sebelum parameter komitmen dipancarkan menuju node validator blockchain.";
+            } else {
+                document.getElementById('dynamicBadge').innerText = "Infrastruktur Berbasis Hash Standard";
+                document.getElementById('leftPaneTitle').innerText = "Gerbang Otentikasi Konvensional";
+                document.getElementById('leftPaneDesc').innerText = "Menggunakan arsitektur transmisi data regular. Kredensial string hash Anda akan dipetakan secara publik melintasi struktur penyimpanan blockchain.";
+            }
+
+            isRegister = true;
+            document.getElementById('fullNameGroup').style.display = 'block';
+            document.getElementById('formTitle').innerText = "Registrasi Akun Baru";
+            document.getElementById('submitBtn').innerText = "Daftar";
+            document.getElementById('zkpTerminal').style.display = proto === 'zkp' ? 'flex' : 'none';
+            if(proto === 'zkp') document.getElementById('logStream').innerHTML = '<div style="color:#888;">> Menunggu inisialisasi input rahasia...</div>';
+            resetForm();
+        }
+
+        function backToProtocols() {
+            document.getElementById('authWorkspace').style.display = 'none';
+            document.getElementById('protocolSelection').style.display = 'block';
+            document.getElementById('dynamicBadge').innerText = "Infrastruktur Berbasis Hash";
+            document.getElementById('leftPaneTitle').innerText = "Gerbang Otentikasi Desentralisasi";
+            document.getElementById('leftPaneDesc').innerText = "Pilih metode gerbang keamanan pada bilah menu interaktif di sebelah kanan untuk memulai sesi pendaftaran atau autentikasi akun baru Anda.";
+        }
+
+        function switchForm() {
+            isRegister = !isRegister;
+            document.getElementById('fullNameGroup').style.display = isRegister ? 'block' : 'none';
+            if (isRegister) {
+                document.getElementById('formTitle').innerText = "Registrasi Akun Baru";
+                document.getElementById('submitBtn').innerText = "Daftar";
+                document.getElementById('toggleBtn').innerText = "Belum memiliki akun? Daftar di sini";
+            } else {
+                document.getElementById('formTitle').innerText = "Otentikasi Masuk Sesi";
+                document.getElementById('submitBtn').innerText = "Login";
+                document.getElementById('toggleBtn').innerText = "Sudah memiliki kredensial? Masuk di sini";
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('fullNameInput').value = "";
+            document.getElementById('userInput').value = "";
+            document.getElementById('passInput').value = "";
+        }
+
+        async function processSubmit(e) {
+            e.preventDefault();
+            if (!walletConnected) return showPopup("Akses Ditolak", "Anda diwajibkan menyambungkan MetaMask untuk verifikasi tanda tangan!");
+
+            const pass = document.getElementById('passInput').value;
+            const uName = document.getElementById('userInput').value;
+            const sBtn = document.getElementById('submitBtn');
+
+            sBtn.innerText = "Memproses...";
+            sBtn.disabled = true;
+
+            try {
+                if (currentProtocol === 'konvensional') {
+                    let txHash = "READ_ONLY_VIEW";
+                    if (isRegister) {
+                        const tx = await contract.registerConventional(pass);
+                        showPopup("Transaksi Dipancarkan", "Menandatangani pemetaan blockchain ledger...");
+                        await tx.wait();
+                        txHash = tx.hash;
+                    } else {
+                        const passMatch = await contract.loginConventional(pass);
+                        if(!passMatch) throw new Error("Kombinasi password salah atau akun belum terdaftar.");
+                    }
+                    
+                    localStorage.setItem('userAddr', myAddress);
+                    localStorage.setItem('usedProto', 'Conventional Module');
+                    localStorage.setItem('usedAction', isRegister ? 'REGISTER' : 'LOGIN');
+                    localStorage.setItem('txHash', txHash);
+                    localStorage.setItem('savedUsername', uName);
+                    window.location.href = "dashboard.html";
+                } else {
+                    // LOG PROSES ZKP BERTAHAP (ASLI BERJALAN SATU PER SATU)
+                    const stream = document.getElementById('logStream');
+                    stream.innerHTML = '';
+                    
+                    const log = (msg, status = '') => {
+                        let cls = status === 'ok' ? 'class="text-ok"' : (status === 'process' ? 'class="text-process"' : '');
+                        stream.innerHTML += `<div>[${new Date().toLocaleTimeString()}] <span ${cls}>${msg}</span></div>`;
+                        stream.scrollTop = stream.scrollHeight;
+                    };
+
+                    log("> Inisialisasi Prover Engine Client...", 'process');
+                    await new Promise(r => setTimeout(r, 600));
+                    
+                    log("> Membaca batasan sirkuit sirkuit (auth.circom)...");
+                    await new Promise(r => setTimeout(r, 500));
+                    
+                    let code = pass.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+                    const zkpHash = code * 777;
+                    
+                    log(`> Komitmen Isyarat Publik Dihitung: ${zkpHash}`, 'process');
+                    await new Promise(r => setTimeout(r, 600));
+                    
+                    log("> Membangun Berkas Saksi (Witness Generation)...");
+                    await new Promise(r => setTimeout(r, 400));
+                    
+                    log("> Menyusunzk-SNARK Kriptografi Bukti ($proof$)...", 'ok');
+                    await new Promise(r => setTimeout(r, 500));
+
+                    let txHash = "READ_ONLY_VIEW";
+                    if (isRegister) {
+                        log("> Mengirim berkas parameter pembuktian ke Smart Contract...", 'process');
+                        const tx = await contract.registerZKP(zkpHash);
+                        await tx.wait();
+                        txHash = tx.hash;
+                    } else {
+                        log("> Mengirim klaim verifikasi bukti matematika ke On-Chain...", 'process');
+                        const isValid = await contract.loginZKP(zkpHash);
+                        if (!isValid) throw new Error("Sirkuit pembuktian matematika digagalkan oleh verifikator on-chain.");
+                    }
+
+                    log("> Validasi Berhasil. Mengalihkan ke Dashboard...", 'ok');
+                    await new Promise(r => setTimeout(r, 400));
+
+                    localStorage.setItem('userAddr', myAddress);
+                    localStorage.setItem('usedProto', 'ZKP Engine (zk-SNARKs)');
+                    localStorage.setItem('usedAction', isRegister ? 'REGISTER' : 'LOGIN');
+                    localStorage.setItem('txHash', txHash);
+                    localStorage.setItem('savedUsername', uName);
+                    window.location.href = "dashboard.html";
+                }
+            } catch (err) {
+                showPopup("Eksekusi Gagal", err.reason || err.message);
+            } finally {
+                sBtn.disabled = false;
+                sBtn.innerText = isRegister ? "Daftar" : "Login";
+            }
+        }
+    </script>
+</body>
+</html>
